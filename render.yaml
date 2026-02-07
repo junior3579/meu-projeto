@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: lets-play-app
+    runtime: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT backend.main:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: NODE_VERSION
+        value: 22.13.0
+      - key: FLASK_ENV
+        value: production
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_SSL
+        value: "True"
+      - key: SECRET_KEY
+        generateValue: true

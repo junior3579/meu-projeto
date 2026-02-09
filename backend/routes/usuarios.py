@@ -8,8 +8,7 @@ def validar_reais(reais):
         reais_int = int(reais)
         if reais_int < 0:
             return None, "O valor de reais não pode ser negativo"
-        if reais_int % 2 != 0:
-            return None, "Não aceita número ímpar, apenas par"
+
         return reais_int, None
     except:
         return None, "Por favor, insira um valor válido"

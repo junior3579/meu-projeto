@@ -142,7 +142,7 @@ def criar_tabelas_remoto():
             id SERIAL PRIMARY KEY,
             nome TEXT NOT NULL UNIQUE,
             senha TEXT NOT NULL,
-            reais INTEGER NOT NULL DEFAULT 0,
+            reais NUMERIC(10,2) NOT NULL DEFAULT 0,
             whatsapp TEXT,
             pix_tipo TEXT,
             pix_chave TEXT,
@@ -160,7 +160,7 @@ def criar_tabelas_remoto():
         CREATE TABLE IF NOT EXISTS salas (
             id_sala SERIAL PRIMARY KEY,
             nome_sala TEXT NOT NULL,
-            valor_inicial INTEGER NOT NULL,
+            valor_inicial NUMERIC(10,2) NOT NULL,
             criador TEXT NOT NULL,
             jogadores TEXT,
             whatsapp TEXT,
@@ -184,7 +184,7 @@ def criar_tabelas_remoto():
             id SERIAL PRIMARY KEY,
             id_usuario INTEGER NOT NULL REFERENCES usuarios(id),
             tipo TEXT NOT NULL,
-            valor INTEGER NOT NULL,
+            valor NUMERIC(10,2) NOT NULL,
             status TEXT DEFAULT 'pendente',
             data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -221,6 +221,28 @@ def criar_tabelas_remoto():
             jogador2_id INTEGER REFERENCES usuarios(id),
             vencedor_id INTEGER REFERENCES usuarios(id),
             status TEXT DEFAULT 'pendente'
+        )
+        ''',
+        '''
+        CREATE TABLE IF NOT EXISTS cofre_total (
+            id INTEGER PRIMARY KEY,
+            valor_total NUMERIC(10,2) DEFAULT 0,
+            ultima_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''',
+        '''
+        CREATE TABLE IF NOT EXISTS cofre_historico (
+            id SERIAL PRIMARY KEY,
+            id_sala INTEGER,
+            valor NUMERIC(10,2),
+            descricao TEXT,
+            data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''',
+        '''
+        CREATE TABLE IF NOT EXISTS configuracoes (
+            chave TEXT PRIMARY KEY,
+            valor TEXT
         )
         '''
     ]

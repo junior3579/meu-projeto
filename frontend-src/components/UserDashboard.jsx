@@ -285,10 +285,10 @@ const UserDashboard = ({ user }) => {
               </div>
 		              <div className="space-y-2">
 		                <Label>Valor Total da Sala (Reais)</Label>
-		                <Input type="number" value={novaSala.valor_inicial} onChange={e => setNovaSala({...novaSala, valor_inicial: e.target.value})} placeholder="Ex: 100" required />
+		                <Input type="number" min="5" step="0.01" value={novaSala.valor_inicial} onChange={e => setNovaSala({...novaSala, valor_inicial: e.target.value})} placeholder="Valor mínimo: R$ 5,00" required />
 		                {novaSala.valor_inicial && (
 		                  <p className="text-xs text-blue-600 font-medium">
-		                    Será debitado apenas metade do valor ({parseFloat(novaSala.valor_inicial) / 2} reais) do seu saldo.
+		                    Será debitado apenas metade do valor (R$ {(parseFloat(novaSala.valor_inicial) / 2).toFixed(2)}) do seu saldo.
 		                  </p>
 		                )}
 		              </div>

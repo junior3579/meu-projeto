@@ -20,8 +20,8 @@ def solicitar_transacao():
         return jsonify({'error': 'Tipo deve ser "deposito" ou "saque"'}), 400
     
     try:
-        valor_int = int(valor)
-        if valor_int <= 0:
+        valor_val = round(float(valor), 2)
+        if valor_val <= 0:
             return jsonify({'error': 'O valor deve ser maior que 0'}), 400
     except:
         return jsonify({'error': 'Valor inválido'}), 400
@@ -38,13 +38,13 @@ def solicitar_transacao():
     nome_usuario, whatsapp_usuario, reais_usuario = usuario[0]
     
     # Verificar se tem saldo suficiente para saque
-    if tipo == 'saque' and reais_usuario < valor_int:
+    if tipo == 'saque' and float(reais_usuario) < valor_val:
         return jsonify({'error': 'Saldo insuficiente para saque'}), 400
     
     # Registrar a solicitação no banco de dados
     sucesso = executar_query_commit(
         "INSERT INTO transacoes (id_usuario, tipo, valor, status) VALUES (%s, %s, %s, %s)",
-        (id_usuario, tipo, valor_int, 'pendente')
+        (id_usuario, tipo, valor_val, 'pendente')
     )
     
     if not sucesso:
@@ -55,7 +55,7 @@ def solicitar_transacao():
     mensagem = f"🔔 *Nova Solicitação de {tipo_texto}*\n\n"
     mensagem += f"👤 *Usuário:* {nome_usuario}\n"
     mensagem += f"📱 *WhatsApp:* {whatsapp_usuario if whatsapp_usuario and whatsapp_usuario != 'Não cadastrado' else 'Não cadastrado'}\n"
-    mensagem += f"💰 *Valor:* {valor_int} reais\n"
+    mensagem += f"💰 *Valor:* R$ {valor_val:.2f}\n"
     mensagem += f"📋 *Tipo:* {tipo_texto}\n"
     mensagem += f"🆔 *ID do Usuário:* {id_usuario}"
     

@@ -90,9 +90,14 @@ def criar_sala():
     categoria_id = data.get('categoria_id')
     
     # Criar sala
+    try:
+        categoria_id_val = int(categoria_id) if categoria_id and str(categoria_id).isdigit() else None
+    except (ValueError, TypeError):
+        categoria_id_val = None
+
     sucesso = executar_query_commit(
         "INSERT INTO salas (nome_sala, valor_inicial, criador, jogadores, whatsapp, categoria_id) VALUES (%s, %s, %s, %s, %s, %s)",
-        (nome_sala, valor_inicial_validado, criador, criador, whatsapp, categoria_id)
+        (nome_sala, float(valor_inicial_validado), criador, criador, whatsapp, categoria_id_val)
     )
     
     if sucesso:
@@ -142,7 +147,9 @@ def entrar_em_sala(id_sala):
         return jsonify({'error': 'Você já está na sala'}), 400
     
     # Adicionar jogador à sala
-    novos_jogadores = jogadores + f",{id_usuario}" if jogadores else str(id_usuario)
+    # Garantir que jogadores seja tratado como string
+    jogadores_str = str(jogadores) if jogadores else ""
+    novos_jogadores = (jogadores_str + f",{id_usuario}") if jogadores_str else str(id_usuario)
     sucesso = executar_query_commit("UPDATE salas SET jogadores = %s WHERE id_sala = %s", (novos_jogadores, id_sala))
     
     if sucesso:
@@ -263,19 +270,19 @@ def definir_ganhador_sala(id_sala):
         # Adicionar prêmio ao vencedor
         executar_query_commit(
             "UPDATE usuarios SET reais = reais + %s WHERE id = %s",
-            (premio, vencedor_id)
+            (float(premio), vencedor_id)
         )
         
         # Adicionar valor ao cofre total
         executar_query_commit(
             "UPDATE cofre_total SET valor_total = valor_total + %s, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = 1",
-            (valor_cofre,)
+            (float(valor_cofre),)
         )
         
         # Registrar no histórico do cofre
         executar_query_commit(
             "INSERT INTO cofre_historico (id_sala, valor, descricao) VALUES (%s, %s, %s)",
-            (id_sala, valor_cofre, f"{porcentagem_casa}% da sala {id_sala} - Vencedor: {vencedor_nome}")
+            (id_sala, float(valor_cofre), f"{porcentagem_casa}% da sala {id_sala} - Vencedor: {vencedor_nome}")
         )
         
         # Emitir notificação via Socket.IO

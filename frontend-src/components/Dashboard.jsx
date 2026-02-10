@@ -35,7 +35,7 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="text-right">
               <p className="text-sm font-medium text-gray-900">{user.nome}</p>
               <p className="text-xs text-gray-500">
-                {isAdmin ? 'Administrador' : `Saldo: R$ ${parseFloat(user.reais).toFixed(2)}`}
+                {isAdmin ? 'Administrador' : `${user.reais} reais`}
               </p>
             </div>
             <Button

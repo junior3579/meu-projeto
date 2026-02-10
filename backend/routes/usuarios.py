@@ -1,14 +1,14 @@
 from flask import Blueprint, request, jsonify
 from backend.database_config import executar_query_fetchall, executar_query_commit, obter_proxima_posicao_vaga, reordenar_posicoes, obter_menor_id_vago
+from decimal import Decimal
 
 usuarios_bp = Blueprint('usuarios', __name__)
 
 def validar_reais(reais):
     try:
-        reais_val = round(float(reais), 2)
+        reais_val = Decimal(str(reais))
         if reais_val < 0:
             return None, "O valor de reais não pode ser negativo"
-
         return reais_val, None
     except:
         return None, "Por favor, insira um valor válido"
@@ -24,7 +24,7 @@ def listar_usuarios():
         usuarios_list.append({
             'id': u[0],
             'nome': u[1],
-            'reais': float(u[2]),
+            'reais': float(u[2]) if u[2] is not None else 0.0,
             'whatsapp': u[3] if u[3] else "Não cadastrado",
             'posicao': u[4],
             'pix_tipo': u[5] if u[5] else "",
@@ -59,7 +59,6 @@ def cadastrar_usuario():
     
     id_vago = obter_menor_id_vago()
     posicao_vaga = id_vago
-
     sucesso = executar_query_commit(
         "INSERT INTO usuarios (id, nome, senha, reais, whatsapp, posicao, pix_tipo, pix_chave) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
         (id_vago, nome, senha, reais_validos, whatsapp, posicao_vaga, pix_tipo, pix_chave)
@@ -86,7 +85,6 @@ def editar_usuario(id_usuario):
     reais_validos, erro = validar_reais(reais)
     if reais_validos is None:
         return jsonify({'error': erro}), 400
-
     sucesso = executar_query_commit(
         "UPDATE usuarios SET nome = %s, senha = %s, reais = %s, whatsapp = %s, pix_tipo = %s, pix_chave = %s WHERE id = %s",
         (nome, senha, reais_validos, whatsapp, pix_tipo, pix_chave, id_usuario)
@@ -113,5 +111,5 @@ def remover_usuario(id_usuario):
 def buscar_saldo_usuario(id_usuario):
     result = executar_query_fetchall("SELECT reais FROM usuarios WHERE id = %s", (id_usuario,))
     if result:
-        return jsonify({'saldo': float(result[0][0])})
+        return jsonify({'saldo': float(result[0][0]) if result[0][0] is not None else 0.0})
     return jsonify({'error': 'Usuário não encontrado'}), 404

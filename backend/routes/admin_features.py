@@ -1,3 +1,4 @@
+from decimal import Decimal
 from flask import Blueprint, request, jsonify
 from backend.database_config import executar_query_fetchall, executar_query_commit
 
@@ -86,12 +87,8 @@ def criar_torneio():
     nome = data.get('nome')
     data_inicio = data.get('data_inicio')
     data_fim = data.get('data_fim')
-    try:
-        valor_inscricao = round(float(data.get('valor_inscricao', 0)), 2)
-        premio = round(float(data.get('premio', 0)), 2)
-    except (ValueError, TypeError):
-        valor_inscricao = 0.0
-        premio = 0.0
+    valor_inscricao = Decimal(str(data.get('valor_inscricao', 0)))
+    premio = Decimal(str(data.get('premio', 0)))
     
     if not nome:
         return jsonify({'error': 'Nome do torneio é obrigatório'}), 400
@@ -131,10 +128,10 @@ def inscrever_no_torneio(id):
     if not usuario:
         return jsonify({'error': 'Usuário não encontrado'}), 404
     
-    saldo_usuario = float(usuario[0][0])
+    saldo_usuario = usuario[0][0]
     
     # Validar se tem saldo suficiente
-    if float(valor_inscricao) > 0 and saldo_usuario < float(valor_inscricao):
+    if valor_inscricao > 0 and saldo_usuario < valor_inscricao:
         return jsonify({'error': f'Saldo insuficiente. A inscrição custa {valor_inscricao} reais e o usuário tem apenas {saldo_usuario} reais.'}), 400
     
     # Verificar se já está inscrito
@@ -148,8 +145,8 @@ def inscrever_no_torneio(id):
     if sucesso:
         # Debitar o saldo automaticamente
         if valor_inscricao > 0:
-            executar_query_commit("UPDATE usuarios SET reais = reais - %s WHERE id = %s", (float(valor_inscricao), usuario_id))
-            return jsonify({'message': f'Inscrição realizada com sucesso! O valor de {valor_inscricao} reais foi debitado do saldo.', 'novo_saldo': float(saldo_usuario) - float(valor_inscricao)})
+            executar_query_commit("UPDATE usuarios SET reais = reais - %s WHERE id = %s", (valor_inscricao, usuario_id))
+            return jsonify({'message': f'Inscrição realizada com sucesso! O valor de {valor_inscricao} reais foi debitado do saldo.', 'novo_saldo': saldo_usuario - valor_inscricao})
         
         return jsonify({'message': 'Inscrição realizada com sucesso'})
     
@@ -270,7 +267,7 @@ def definir_vencedor_confronto(id_confronto):
             # Premiar
             torneio_info = executar_query_fetchall("SELECT premio FROM torneios WHERE id = %s", (torneio_id,))
             if torneio_info and torneio_info[0][0] > 0:
-                executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE id = %s", (float(torneio_info[0][0]), campeao_id))
+                executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE id = %s", (torneio_info[0][0], campeao_id))
         elif len(vencedores) > 1:
             # Criar nova fase
             try:
@@ -326,12 +323,8 @@ def eliminar_participante(id):
 @admin_features_bp.route('/torneios/<int:id>', methods=['PUT'])
 def editar_torneio(id):
     data = request.get_json()
-    try:
-        valor_inscricao = round(float(data.get('valor_inscricao'))) if data.get('valor_inscricao') is not None else None
-        premio = round(float(data.get('premio'))) if data.get('premio') is not None else None
-    except (ValueError, TypeError):
-        valor_inscricao = None
-        premio = None
+    valor_inscricao = data.get('valor_inscricao')
+    premio = Decimal(str(data.get('premio'))) if data.get('premio') is not None else None
     nome = data.get('nome')
     data_inicio = data.get('data_inicio')
     data_fim = data.get('data_fim')
@@ -453,7 +446,7 @@ def finalizar_torneio(id):
         if premio > 0:
             executar_query_commit(
                 "UPDATE usuarios SET reais = reais + %s WHERE id = %s",
-                (float(premio), vencedor_id)
+                (premio, vencedor_id)
             )
         
         return jsonify({
@@ -517,7 +510,7 @@ def obter_cofre_total():
     cofre = executar_query_fetchall("SELECT valor_total, ultima_atualizacao FROM cofre_total WHERE id = 1")
     if cofre:
         return jsonify({
-            'valor_total': float(cofre[0][0]),
+            'valor_total': cofre[0][0],
             'ultima_atualizacao': str(cofre[0][1]) if cofre[0][1] else None
         })
     return jsonify({'valor_total': 0, 'ultima_atualizacao': None})
@@ -548,7 +541,7 @@ def obter_historico_cofre():
             resultado.append({
                 'id': h[0],
                 'id_sala': h[1],
-                'valor': float(h[2]) if h[2] is not None else 0.0,
+                'valor': h[2],
                 'data_registro': str(h[3]) if h[3] else None,
                 'descricao': h[4],
                 'nome_sala': h[5] if h[5] else f"Sala #{h[1]}"
@@ -634,7 +627,7 @@ def salvar_configuracao():
 def zerar_cofre():
     # Obter valor atual para o histórico
     cofre = executar_query_fetchall("SELECT valor_total FROM cofre_total WHERE id = 1")
-    valor_anterior = float(cofre[0][0]) if cofre else 0.0
+    valor_anterior = cofre[0][0] if cofre else 0
     
     if valor_anterior <= 0:
         return jsonify({'error': 'O cofre já está zerado'}), 400
@@ -669,10 +662,10 @@ def transferir_lucro():
         
     # Verificar saldo do cofre
     cofre = executar_query_fetchall("SELECT valor_total FROM cofre_total WHERE id = 1")
-    saldo_cofre = float(cofre[0][0]) if cofre else 0.0
+    saldo_cofre = cofre[0][0] if cofre else 0
     
     if saldo_cofre < valor_transferir:
-        return jsonify({'error': f'Saldo insuficiente no cofre. Disponível: R$ {saldo_cofre:.2f}'}), 400
+        return jsonify({'error': f'Saldo insuficiente no cofre. Disponível: R$ {saldo_cofre}'}), 400
         
     # Verificar se usuário existe
     usuario = executar_query_fetchall("SELECT nome FROM usuarios WHERE id = %s", (usuario_id,))
@@ -685,28 +678,28 @@ def transferir_lucro():
     # 1. Aumentar saldo do usuário primeiro
     sucesso_usuario = executar_query_commit(
         "UPDATE usuarios SET reais = reais + %s WHERE id = %s",
-        (float(valor_transferir), usuario_id)
+        (int(valor_transferir), usuario_id)
     )
     
     if sucesso_usuario:
         # 2. Diminuir do cofre
         sucesso_cofre = executar_query_commit(
             "UPDATE cofre_total SET valor_total = valor_total - %s, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = 1",
-            (float(valor_transferir),)
+            (int(valor_transferir),)
         )
         
         if sucesso_cofre:
             # 3. Registrar no histórico
             executar_query_commit(
                 "INSERT INTO cofre_historico (id_sala, valor, descricao) VALUES (0, %s, %s)",
-                (-float(valor_transferir), f"Transferência de lucro para {nome_usuario}")
+                (-valor_transferir, f"Transferência de lucro para {nome_usuario}")
             )
             return jsonify({'message': f'R$ {valor_transferir} transferidos para {nome_usuario} com sucesso'})
         else:
             # Rollback do saldo do usuário se falhar a atualização do cofre
             executar_query_commit(
                 "UPDATE usuarios SET reais = reais - %s WHERE id = %s",
-                (float(valor_transferir), usuario_id)
+                (int(valor_transferir), usuario_id)
             )
             return jsonify({'error': 'Erro ao atualizar saldo do cofre'}), 500
             

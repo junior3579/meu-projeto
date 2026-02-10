@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from backend.database_config import executar_query_fetchall, executar_query_commit
+from decimal import Decimal, ROUND_HALF_UP
 
 apostas_bp = Blueprint('apostas', __name__)
 
@@ -21,7 +22,7 @@ def listar_apostas():
             'id_sala': aposta[1],
             'id_usuario': aposta[2],
             'nome_usuario': aposta[3],
-            'valor_aposta': float(aposta[4]),
+            'valor_aposta': float(aposta[4]) if aposta[4] is not None else 0.0,
             'status': aposta[5],
             'resultado': aposta[6]
         })
@@ -42,17 +43,18 @@ def confirmar_aposta():
     if not sala:
         return jsonify({'error': 'Sala não encontrada'}), 404
     
-    valor_inicial = sala[0][0]
+    valor_inicial = Decimal(str(sala[0][0]))
     
     # Verificar se ganhador existe
     saldo = executar_query_fetchall("SELECT reais FROM usuarios WHERE id = %s", (id_ganhador,))
     if not saldo:
         return jsonify({'error': 'Ganhador não encontrado'}), 404
     
-    saldo_atual = float(saldo[0][0])
+    saldo_atual = Decimal(str(saldo[0][0]))
     # O ganhador ganha 80% do valor total da sala (ex: sala de 10 reais, ganha 8)
-    premio = round(float(valor_inicial) * 0.8, 2)
-    novo_saldo = round(saldo_atual + premio, 2)
+    # Usando ROUND_HALF_UP para garantir tratamento correto dos centavos
+    premio = (valor_inicial * Decimal('0.8')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    novo_saldo = saldo_atual + premio
     
     # Atualizar reais do ganhador
     sucesso = executar_query_commit("UPDATE usuarios SET reais = %s WHERE id = %s", (novo_saldo, id_ganhador))
@@ -62,9 +64,8 @@ def confirmar_aposta():
         executar_query_commit("DELETE FROM apostas WHERE id_sala = %s", (id_sala,))
         
         return jsonify({
-            'message': f'Jogador {id_ganhador} ganhou {premio} reais',
-            'novo_saldo': novo_saldo
+            'message': f'Jogador {id_ganhador} ganhou {float(premio):.2f} reais',
+            'novo_saldo': float(novo_saldo)
         })
     else:
         return jsonify({'error': 'Erro ao confirmar aposta'}), 500
-

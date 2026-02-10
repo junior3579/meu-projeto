@@ -312,7 +312,7 @@ const AdminDashboard = ({ user }) => {
       })
       const data = await res.json()
       if (res.ok) {
-        setSuccess(`Ganhador definido! ${data.vencedor_nome} ganhou R$ ${parseFloat(data.premio).toFixed(2)}`)
+        setSuccess(`Ganhador definido! ${data.vencedor_nome} ganhou ${data.premio} reais`)
         setDialogDefinirGanhadorSala(false)
         setSalaParaDefinirGanhador(null)
         setVencedorSelecionado('')
@@ -341,7 +341,7 @@ const AdminDashboard = ({ user }) => {
       })
       const data = await res.json()
       if (res.ok) {
-        setSuccess(`Torneio finalizado! Prêmio: R$ ${parseFloat(data.premio).toFixed(2)}`)
+        setSuccess(`Torneio finalizado! Prêmio: ${data.premio} reais`)
         setDialogDefinirGanhadorTorneio(false)
         setTorneioParaDefinirGanhador(null)
         setVencedorSelecionado('')
@@ -451,7 +451,7 @@ const AdminDashboard = ({ user }) => {
                   <div key={u.id} className="flex justify-between items-center p-3 bg-gray-50 rounded">
                     <div>
                       <span className="font-medium">{u.nome}</span>
-                      <Badge className="ml-2">R$ {parseFloat(u.reais).toFixed(2)}</Badge>
+                      <Badge className="ml-2">{u.reais} reais</Badge>
                       <span className="text-xs text-gray-500 ml-2">ID: {u.id}</span>
                     </div>
                     <div className="flex gap-2">
@@ -514,7 +514,7 @@ const AdminDashboard = ({ user }) => {
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="font-bold">{sala.nome_sala}</h3>
-                    <p className="text-sm text-gray-600">Valor: R$ {parseFloat(sala.valor_inicial).toFixed(2)}</p>
+                    <p className="text-sm text-gray-600">Valor: {sala.valor_inicial} reais</p>
                     <p className="text-sm text-gray-600">Criador: {sala.criador}</p>
                     {sala.status === 'finalizada' && sala.vencedor_id && (
                       <Badge className="mt-2" variant="success">
@@ -588,8 +588,8 @@ const AdminDashboard = ({ user }) => {
                     <div className="flex flex-wrap gap-2 mt-1">
                       <Badge variant="outline">{t.status}</Badge>
                       {t.fase_atual && <Badge variant="secondary">{t.fase_atual}</Badge>}
-                      {t.valor_inscricao > 0 && <Badge variant="secondary">Inscrição: R$ {parseFloat(t.valor_inscricao).toFixed(2)}</Badge>}
-                      {t.premio > 0 && <Badge variant="secondary">Prêmio: R$ {parseFloat(t.premio).toFixed(2)}</Badge>}
+                      {t.valor_inscricao > 0 && <Badge variant="secondary">Inscrição: {t.valor_inscricao} reais</Badge>}
+                      {t.premio > 0 && <Badge variant="secondary">Prêmio: {t.premio} reais</Badge>}
                       {t.data_inicio && <Badge variant="outline" className="bg-blue-50">Início: {t.data_inicio}</Badge>}
                       {t.data_fim && <Badge variant="outline" className="bg-red-50">Fim: {t.data_fim}</Badge>}
                     </div>

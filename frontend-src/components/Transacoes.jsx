@@ -187,7 +187,7 @@ const Transacoes = ({ user }) => {
                     className="bg-white border-gray-300 text-gray-900"
                   />
                   <p className="text-sm text-gray-500">
-                    Saldo disponível: R$ {parseFloat(user.reais).toFixed(2)}
+                    Saldo disponível: {user.reais} reais
                   </p>
                 </div>
 

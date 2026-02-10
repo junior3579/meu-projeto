@@ -100,7 +100,7 @@ const UserDashboard = ({ user }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6 flex items-center space-x-3">
           <Coins className="h-8 w-8 text-yellow-600" />
-          <div><p className="text-sm text-gray-500">Saldo atual</p><p className="text-2xl font-bold">R$ {parseFloat(saldoAtual).toFixed(2)}</p></div>
+          <div><p className="text-sm text-gray-500">Saldo atual</p><p className="text-2xl font-bold">{saldoAtual} reais</p></div>
         </Card>
 
       </div>
@@ -136,7 +136,7 @@ const UserDashboard = ({ user }) => {
 	                      {categorias.find(c => c.id === sala.categoria_id)?.nome || 'Geral'}
 	                    </Badge>
 	                  </div>
-		                  <Badge className="bg-blue-600">Prêmio: {(parseFloat(sala.valor_inicial) * ((100 - (parseInt(configuracoes.porcentagem_casa) || 10)) / 100)).toFixed(2)} reais</Badge>
+		                  <Badge className="bg-blue-600">Prêmio: {sala.valor_inicial * ((100 - (parseInt(configuracoes.porcentagem_casa) || 10)) / 100)} reais</Badge>
 	                </div>
 	                
 	                {/* Exibição de WhatsApp - SEMPRE VISÍVEL */}
@@ -180,9 +180,9 @@ const UserDashboard = ({ user }) => {
 	                  <span className="text-sm text-gray-600 flex items-center gap-1">
 	                    <Users className="h-3 w-3" /> {Object.keys(sala.jogadores).length}/2
 	                  </span>
-<Button size="sm" onClick={() => entrarNaSala(sala.id_sala)} disabled={Object.keys(sala.jogadores).length >= 2 || sala.criador === user.nome}>
-		                    {sala.criador === user.nome ? 'Sua Sala' : `Entrar (R$ ${(parseFloat(sala.valor_inicial) / 2).toFixed(2)})`}
-		                  </Button>
+	                  <Button size="sm" onClick={() => entrarNaSala(sala.id_sala)} disabled={Object.keys(sala.jogadores).length >= 2 || sala.criador === user.nome}>
+	                    {sala.criador === user.nome ? 'Sua Sala' : `Entrar (${sala.valor_inicial / 2} reais)`}
+	                  </Button>
 	                </div>
               </Card>
             ))}
@@ -198,8 +198,8 @@ const UserDashboard = ({ user }) => {
                   <div className="flex flex-wrap gap-2 mt-2">
                     <Badge variant={t.status === 'finalizado' ? 'secondary' : 'default'}>{t.status}</Badge>
                     {t.fase_atual && <Badge variant="outline">{t.fase_atual}</Badge>}
-                    {t.valor_inscricao > 0 && <Badge className="bg-blue-600">Inscrição: R$ {parseFloat(t.valor_inscricao).toFixed(2)}</Badge>}
-                    {t.premio > 0 && <Badge className="bg-green-600">Prêmio: R$ {parseFloat(t.premio).toFixed(2)}</Badge>}
+                    {t.valor_inscricao > 0 && <Badge className="bg-blue-600">Inscrição: {t.valor_inscricao} reais</Badge>}
+                    {t.premio > 0 && <Badge className="bg-green-600">Prêmio: {t.premio} reais</Badge>}
                   </div>
                   <div className="flex gap-4 mt-2 text-xs text-gray-500">
                     {t.data_inicio && <span>📅 Início: {t.data_inicio}</span>}
@@ -233,7 +233,7 @@ const UserDashboard = ({ user }) => {
                     }}
                     disabled={t.participantes.some(p => p.id === user.id)}
                   >
-                    {t.participantes.some(p => p.id === user.id) ? 'Você já está inscrito' : `Inscrever-se (R$ ${parseFloat(t.valor_inscricao).toFixed(2)})`}
+                    {t.participantes.some(p => p.id === user.id) ? 'Você já está inscrito' : `Inscrever-se (${t.valor_inscricao} reais)`}
                   </Button>
                 )}
 
@@ -285,10 +285,10 @@ const UserDashboard = ({ user }) => {
               </div>
 		              <div className="space-y-2">
 		                <Label>Valor Total da Sala (Reais)</Label>
-		                <Input type="number" min="5" step="0.01" value={novaSala.valor_inicial} onChange={e => setNovaSala({...novaSala, valor_inicial: e.target.value})} placeholder="Valor mínimo: R$ 5,00" required />
+		                <Input type="number" value={novaSala.valor_inicial} onChange={e => setNovaSala({...novaSala, valor_inicial: e.target.value})} placeholder="Ex: 100" required />
 		                {novaSala.valor_inicial && (
 		                  <p className="text-xs text-blue-600 font-medium">
-		                    Será debitado apenas metade do valor (R$ {(parseFloat(novaSala.valor_inicial) / 2).toFixed(2)}) do seu saldo.
+		                    Será debitado apenas metade do valor ({parseFloat(novaSala.valor_inicial) / 2} reais) do seu saldo.
 		                  </p>
 		                )}
 		              </div>

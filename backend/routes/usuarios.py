@@ -103,41 +103,11 @@ def remover_usuario(id_usuario):
     if not existe:
         return jsonify({'error': 'Usuário não encontrado'}), 404
     
-    # Remover referências em outras tabelas para evitar erro de Foreign Key
-    try:
-        # Remover apostas
-        executar_query_commit("DELETE FROM apostas WHERE id_usuario = %s", (id_usuario,))
-        # Remover transações
-        executar_query_commit("DELETE FROM transacoes WHERE id_usuario = %s", (id_usuario,))
-        # Remover participações em torneios
-        executar_query_commit("DELETE FROM torneio_participantes WHERE usuario_id = %s", (id_usuario,))
-        # Limpar referências em confrontos de torneios
-        executar_query_commit("UPDATE torneio_confrontos SET jogador1_id = NULL WHERE jogador1_id = %s", (id_usuario,))
-        executar_query_commit("UPDATE torneio_confrontos SET jogador2_id = NULL WHERE jogador2_id = %s", (id_usuario,))
-        executar_query_commit("UPDATE torneio_confrontos SET vencedor_id = NULL WHERE vencedor_id = %s", (id_usuario,))
-        # Limpar vencedor em torneios
-        executar_query_commit("UPDATE torneios SET vencedor_id = NULL WHERE vencedor_id = %s", (id_usuario,))
-        # Limpar vencedor em salas
-        executar_query_commit("UPDATE salas SET vencedor_id = NULL WHERE vencedor_id = %s", (id_usuario,))
-        
-        # Remover usuário da lista de jogadores em salas (coluna TEXT com IDs separados por vírgula)
-        # Como é uma coluna TEXT, precisamos de uma abordagem mais cuidadosa ou apenas aceitar que salas abertas ficarão inconsistentes
-        # Uma solução simples é remover o ID se ele estiver sozinho ou em uma lista
-        executar_query_commit("UPDATE salas SET jogadores = NULL WHERE jogadores = %s", (str(id_usuario),))
-        # Para casos como "1,2", "2,1", etc, é mais complexo com SQL puro sem REGEX avançado em todas as DBs, 
-        # mas como o objetivo é permitir apagar o usuário, as restrições de FK eram o maior problema.
-        # A coluna 'jogadores' não tem FK, então não impede o DELETE.
-        
-        # Finalmente remover o usuário
-        sucesso = executar_query_commit("DELETE FROM usuarios WHERE id = %s", (id_usuario,))
-        
-        if sucesso:
-            return jsonify({'message': f'Usuário {id_usuario} removido com sucesso'})
-        else:
-            return jsonify({'error': 'Erro ao remover usuário do banco de dados'}), 500
-    except Exception as e:
-        print(f"Erro ao remover usuário {id_usuario}: {str(e)}")
-        return jsonify({'error': f'Erro ao remover usuário: {str(e)}'}), 500
+    sucesso = executar_query_commit("DELETE FROM usuarios WHERE id = %s", (id_usuario,))
+    if sucesso:
+        return jsonify({'message': f'Usuário {id_usuario} removido com sucesso'})
+    else:
+        return jsonify({'error': 'Erro ao remover usuário'}), 500
 
 @usuarios_bp.route('/usuarios/<int:id_usuario>/saldo', methods=['GET'])
 def buscar_saldo_usuario(id_usuario):

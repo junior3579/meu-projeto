@@ -572,16 +572,7 @@ def obter_estatisticas_cofre():
     saldo_jogadores = executar_query_fetchall("SELECT SUM(reais) FROM usuarios")
     total_saldo_jogadores = float(saldo_jogadores[0][0]) if saldo_jogadores and saldo_jogadores[0][0] else 0
     
-    # Depósitos e Saques Aprovados (Entradas e Saídas Reais de dinheiro no sistema)
-    # Nota: Atualmente o sistema não tem uma rota de aprovação automática que atualiza o lucro,
-    # então vamos considerar o fluxo de caixa real: (Depósitos - Saques) + Lucro das Salas
-    depositos_res = executar_query_fetchall("SELECT SUM(valor) FROM transacoes WHERE tipo = 'deposito' AND status = 'aprovado'")
-    total_depositos = float(depositos_res[0][0]) if depositos_res and depositos_res[0][0] else 0
-    
-    saques_res = executar_query_fetchall("SELECT SUM(valor) FROM transacoes WHERE tipo = 'saque' AND status = 'aprovado'")
-    total_saques = float(saques_res[0][0]) if saques_res and saques_res[0][0] else 0
-
-    # Contar total de usuários para calcular o investimento inicial (créditos de boas-vindas)
+    # Contar total de usuários para calcular o investimento inicial (20 reais por jogador)
     total_usuarios_res = executar_query_fetchall("SELECT COUNT(*) FROM usuarios")
     total_usuarios = total_usuarios_res[0][0] if total_usuarios_res else 0
     investimento_inicial = total_usuarios * 20
@@ -597,18 +588,13 @@ def obter_estatisticas_cofre():
             'data': str(ultimo[0][1]) if ultimo[0][1] else None
         }
     
-    # Cálculo do Lucro Real Estimado:
-    # (Dinheiro que entrou via Depósitos) - (Dinheiro que saiu via Saques) - (Dinheiro que os jogadores ainda possuem)
-    # Se o resultado for positivo, a casa está no lucro. Se negativo, os créditos iniciais ou bônus superam o que entrou.
-    lucro_real = total_depositos - total_saques - total_saldo_jogadores
-    
     return jsonify({
         'valor_total': float(valor_total),
         'total_salas_finalizadas': total_salas,
         'valor_medio_por_sala': round(float(valor_medio), 2),
         'ultimo_recebimento': ultimo_recebimento,
         'total_saldo_jogadores': round(float(total_saldo_jogadores), 2),
-        'total_geral_casa': round(lucro_real, 2)
+        'total_geral_casa': round(float(valor_total) + float(total_saldo_jogadores) - float(investimento_inicial), 2)
     })
 
 # --- Configurações e Gestão de Lucro ---

@@ -9,7 +9,7 @@ DB_CONFIG = {
     "password": os.environ.get("DB_PASSWORD", "Qwer35791931@"),
     "host": os.environ.get("DB_HOST", "aws-1-sa-east-1.pooler.supabase.com"),
     "database": os.environ.get("DB_NAME", "postgres"),
-    "port": int(os.environ.get("DB_PORT", 5432)),
+    "port": int(os.environ.get("DB_PORT", 6543)), # Alterado para Modo de Transação do Supabase
     "ssl_context": os.environ.get("DB_SSL", "True") == "True"
 }
 
@@ -63,7 +63,7 @@ class PG8000Pool:
 # Criar pool de conexões com limites mais seguros para o Supabase
 try:
     connection_pool = PG8000Pool(
-        2, 10, # Reduzido maxconn para evitar estourar limites do Supabase
+        5, 20, # Aumentado para o Modo de Transação que suporta mais conexões simultâneas
         user=DB_CONFIG["user"],
         password=DB_CONFIG["password"],
         host=DB_CONFIG["host"],

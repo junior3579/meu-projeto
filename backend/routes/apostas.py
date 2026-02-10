@@ -21,7 +21,7 @@ def listar_apostas():
             'id_sala': aposta[1],
             'id_usuario': aposta[2],
             'nome_usuario': aposta[3],
-            'valor_aposta': aposta[4],
+            'valor_aposta': float(aposta[4]),
             'status': aposta[5],
             'resultado': aposta[6]
         })

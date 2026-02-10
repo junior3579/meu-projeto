@@ -86,8 +86,12 @@ def criar_torneio():
     nome = data.get('nome')
     data_inicio = data.get('data_inicio')
     data_fim = data.get('data_fim')
-    valor_inscricao = data.get('valor_inscricao', 0)
-    premio = data.get('premio', 0)
+    try:
+        valor_inscricao = round(float(data.get('valor_inscricao', 0)), 2)
+        premio = round(float(data.get('premio', 0)), 2)
+    except (ValueError, TypeError):
+        valor_inscricao = 0.0
+        premio = 0.0
     
     if not nome:
         return jsonify({'error': 'Nome do torneio é obrigatório'}), 400
@@ -322,8 +326,12 @@ def eliminar_participante(id):
 @admin_features_bp.route('/torneios/<int:id>', methods=['PUT'])
 def editar_torneio(id):
     data = request.get_json()
-    valor_inscricao = data.get('valor_inscricao')
-    premio = data.get('premio')
+    try:
+        valor_inscricao = round(float(data.get('valor_inscricao'))) if data.get('valor_inscricao') is not None else None
+        premio = round(float(data.get('premio'))) if data.get('premio') is not None else None
+    except (ValueError, TypeError):
+        valor_inscricao = None
+        premio = None
     nome = data.get('nome')
     data_inicio = data.get('data_inicio')
     data_fim = data.get('data_fim')
@@ -509,7 +517,7 @@ def obter_cofre_total():
     cofre = executar_query_fetchall("SELECT valor_total, ultima_atualizacao FROM cofre_total WHERE id = 1")
     if cofre:
         return jsonify({
-            'valor_total': cofre[0][0],
+            'valor_total': float(cofre[0][0]),
             'ultima_atualizacao': str(cofre[0][1]) if cofre[0][1] else None
         })
     return jsonify({'valor_total': 0, 'ultima_atualizacao': None})
@@ -540,7 +548,7 @@ def obter_historico_cofre():
             resultado.append({
                 'id': h[0],
                 'id_sala': h[1],
-                'valor': h[2],
+                'valor': float(h[2]) if h[2] is not None else 0.0,
                 'data_registro': str(h[3]) if h[3] else None,
                 'descricao': h[4],
                 'nome_sala': h[5] if h[5] else f"Sala #{h[1]}"

@@ -81,7 +81,7 @@ def historico_transacoes(id_usuario):
         transacoes_list.append({
             'id': t[0],
             'tipo': t[1],
-            'valor': t[2],
+            'valor': float(t[2]),
             'status': t[3],
             'data': str(t[4]) if t[4] else None
         })

@@ -24,7 +24,7 @@ def listar_usuarios():
         usuarios_list.append({
             'id': u[0],
             'nome': u[1],
-            'reais': u[2],
+            'reais': float(u[2]),
             'whatsapp': u[3] if u[3] else "Não cadastrado",
             'posicao': u[4],
             'pix_tipo': u[5] if u[5] else "",
@@ -113,5 +113,5 @@ def remover_usuario(id_usuario):
 def buscar_saldo_usuario(id_usuario):
     result = executar_query_fetchall("SELECT reais FROM usuarios WHERE id = %s", (id_usuario,))
     if result:
-        return jsonify({'saldo': result[0][0]})
+        return jsonify({'saldo': float(result[0][0])})
     return jsonify({'error': 'Usuário não encontrado'}), 404

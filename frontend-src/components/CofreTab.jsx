@@ -274,7 +274,7 @@ const CofreTab = () => {
                         <SelectContent>
                           {usuarios.map(u => (
                             <SelectItem key={u.id} value={u.id.toString()}>
-                              {u.nome} (Saldo: R$ {u.reais})
+                              {u.nome} (Saldo: R$ {parseFloat(u.reais).toFixed(2)})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -288,7 +288,7 @@ const CofreTab = () => {
                         value={transferencia.valor}
                         onChange={(e) => setTransferencia({...transferencia, valor: e.target.value})}
                       />
-                      <p className="text-xs text-gray-500">Saldo disponível no cofre: R$ {cofreTotal?.valor_total || 0}</p>
+                      <p className="text-xs text-gray-500">Saldo disponível no cofre: R$ {parseFloat(cofreTotal?.valor_total || 0).toFixed(2)}</p>
                     </div>
                   </div>
                   <DialogFooter>
@@ -317,7 +317,7 @@ const CofreTab = () => {
                       Atenção: Zerar Cofre
                     </DialogTitle>
                     <DialogDescription>
-                      Esta ação irá zerar o saldo acumulado no cofre (R$ {cofreTotal?.valor_total || 0}). 
+                      Esta ação irá zerar o saldo acumulado no cofre (R$ {parseFloat(cofreTotal?.valor_total || 0).toFixed(2)}). 
                       Isso é geralmente feito após você realizar o saque real do lucro.
                       Deseja continuar?
                     </DialogDescription>

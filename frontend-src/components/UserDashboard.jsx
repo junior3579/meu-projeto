@@ -198,8 +198,8 @@ const UserDashboard = ({ user }) => {
                   <div className="flex flex-wrap gap-2 mt-2">
                     <Badge variant={t.status === 'finalizado' ? 'secondary' : 'default'}>{t.status}</Badge>
                     {t.fase_atual && <Badge variant="outline">{t.fase_atual}</Badge>}
-                    {t.valor_inscricao > 0 && <Badge className="bg-blue-600">Inscrição: {t.valor_inscricao} reais</Badge>}
-                    {t.premio > 0 && <Badge className="bg-green-600">Prêmio: {t.premio} reais</Badge>}
+                    {t.valor_inscricao > 0 && <Badge className="bg-blue-600">Inscrição: R$ {parseFloat(t.valor_inscricao).toFixed(2)}</Badge>}
+                    {t.premio > 0 && <Badge className="bg-green-600">Prêmio: R$ {parseFloat(t.premio).toFixed(2)}</Badge>}
                   </div>
                   <div className="flex gap-4 mt-2 text-xs text-gray-500">
                     {t.data_inicio && <span>📅 Início: {t.data_inicio}</span>}
@@ -233,7 +233,7 @@ const UserDashboard = ({ user }) => {
                     }}
                     disabled={t.participantes.some(p => p.id === user.id)}
                   >
-                    {t.participantes.some(p => p.id === user.id) ? 'Você já está inscrito' : `Inscrever-se (${t.valor_inscricao} reais)`}
+                    {t.participantes.some(p => p.id === user.id) ? 'Você já está inscrito' : `Inscrever-se (R$ ${parseFloat(t.valor_inscricao).toFixed(2)})`}
                   </Button>
                 )}
 

@@ -6,11 +6,11 @@ salas_bp = Blueprint('salas', __name__)
 
 def validar_reais(reais):
     try:
-        reais_val = float(reais)
+        reais_val = round(float(reais), 2)
         if reais_val < 5:
             return None, "O valor mínimo para criar uma sala é R$ 5,00"
         return reais_val, None
-    except:
+    except (ValueError, TypeError):
         return None, "Por favor, insira um valor válido"
 
 def obter_jogadores(jogadores_str):
@@ -46,7 +46,7 @@ def listar_salas():
         salas_list.append({
             'id_sala': id_sala,
             'nome_sala': nome_sala,
-            'valor_inicial': valor_inicial,
+            'valor_inicial': float(valor_inicial),
             'criador': criador,
             'jogadores': jogadores_dict,
             'whatsapp': whatsapp,

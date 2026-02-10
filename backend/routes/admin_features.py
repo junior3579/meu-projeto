@@ -522,10 +522,10 @@ def obter_historico_cofre():
     offset = request.args.get('offset', 0, type=int)
     
     historico = executar_query_fetchall(
-        """SELECT h.id, h.id_sala, h.valor, h.data_recebimento, h.descricao, s.nome_sala
+        """SELECT h.id, h.id_sala, h.valor, h.data_registro, h.descricao, s.nome_sala
            FROM cofre_historico h
            LEFT JOIN salas s ON h.id_sala = s.id_sala
-           ORDER BY h.data_recebimento DESC
+           ORDER BY h.data_registro DESC
            LIMIT %s OFFSET %s""",
         (limite, offset)
     )
@@ -579,7 +579,7 @@ def obter_estatisticas_cofre():
 
     # Último recebimento
     ultimo = executar_query_fetchall(
-        "SELECT valor, data_recebimento FROM cofre_historico ORDER BY data_recebimento DESC LIMIT 1"
+        "SELECT valor, data_registro FROM cofre_historico ORDER BY data_registro DESC LIMIT 1"
     )
     ultimo_recebimento = None
     if ultimo:
@@ -637,8 +637,8 @@ def zerar_cofre():
     if sucesso:
         # Registrar no histórico
         executar_query_commit(
-            "INSERT INTO cofre_historico (id_sala, valor, descricao, tipo_transacao) VALUES (0, %s, %s, %s)",
-            (-valor_anterior, f"Cofre zerado pelo administrador (Valor anterior: R$ {valor_anterior})", 'zeramento')
+            "INSERT INTO cofre_historico (id_sala, valor, descricao) VALUES (0, %s, %s)",
+            (-valor_anterior, f"Cofre zerado pelo administrador (Valor anterior: R$ {valor_anterior})")
         )
         return jsonify({'message': 'Lucro da casa zerado com sucesso'})
     return jsonify({'error': 'Erro ao zerar lucro da casa'}), 500
@@ -690,8 +690,8 @@ def transferir_lucro():
         if sucesso_cofre:
             # 3. Registrar no histórico
             executar_query_commit(
-                "INSERT INTO cofre_historico (id_sala, valor, descricao, tipo_transacao) VALUES (0, %s, %s, %s)",
-                (-valor_transferir, f"Transferência de lucro para {nome_usuario}", 'transferencia')
+                "INSERT INTO cofre_historico (id_sala, valor, descricao) VALUES (0, %s, %s)",
+                (-valor_transferir, f"Transferência de lucro para {nome_usuario}")
             )
             return jsonify({'message': f'R$ {valor_transferir} transferidos para {nome_usuario} com sucesso'})
         else:

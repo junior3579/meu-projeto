@@ -100,7 +100,7 @@ const UserDashboard = ({ user }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6 flex items-center space-x-3">
           <Coins className="h-8 w-8 text-yellow-600" />
-          <div><p className="text-sm text-gray-500">Saldo atual</p><p className="text-2xl font-bold">{saldoAtual} reais</p></div>
+          <div><p className="text-sm text-gray-500">Saldo atual</p><p className="text-2xl font-bold">R$ {parseFloat(saldoAtual).toFixed(2)}</p></div>
         </Card>
 
       </div>
@@ -136,7 +136,7 @@ const UserDashboard = ({ user }) => {
 	                      {categorias.find(c => c.id === sala.categoria_id)?.nome || 'Geral'}
 	                    </Badge>
 	                  </div>
-		                  <Badge className="bg-blue-600">Prêmio: {sala.valor_inicial * ((100 - (parseInt(configuracoes.porcentagem_casa) || 10)) / 100)} reais</Badge>
+		                  <Badge className="bg-blue-600">Prêmio: {(parseFloat(sala.valor_inicial) * ((100 - (parseInt(configuracoes.porcentagem_casa) || 10)) / 100)).toFixed(2)} reais</Badge>
 	                </div>
 	                
 	                {/* Exibição de WhatsApp - SEMPRE VISÍVEL */}
@@ -180,9 +180,9 @@ const UserDashboard = ({ user }) => {
 	                  <span className="text-sm text-gray-600 flex items-center gap-1">
 	                    <Users className="h-3 w-3" /> {Object.keys(sala.jogadores).length}/2
 	                  </span>
-	                  <Button size="sm" onClick={() => entrarNaSala(sala.id_sala)} disabled={Object.keys(sala.jogadores).length >= 2 || sala.criador === user.nome}>
-	                    {sala.criador === user.nome ? 'Sua Sala' : `Entrar (${sala.valor_inicial / 2} reais)`}
-	                  </Button>
+<Button size="sm" onClick={() => entrarNaSala(sala.id_sala)} disabled={Object.keys(sala.jogadores).length >= 2 || sala.criador === user.nome}>
+		                    {sala.criador === user.nome ? 'Sua Sala' : `Entrar (R$ ${(parseFloat(sala.valor_inicial) / 2).toFixed(2)})`}
+		                  </Button>
 	                </div>
               </Card>
             ))}

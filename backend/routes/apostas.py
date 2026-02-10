@@ -49,10 +49,10 @@ def confirmar_aposta():
     if not saldo:
         return jsonify({'error': 'Ganhador não encontrado'}), 404
     
-    saldo_atual = saldo[0][0]
+    saldo_atual = float(saldo[0][0])
     # O ganhador ganha 80% do valor total da sala (ex: sala de 10 reais, ganha 8)
-    premio = int(valor_inicial * 0.8)
-    novo_saldo = saldo_atual + premio
+    premio = round(float(valor_inicial) * 0.8, 2)
+    novo_saldo = round(saldo_atual + premio, 2)
     
     # Atualizar reais do ganhador
     sucesso = executar_query_commit("UPDATE usuarios SET reais = %s WHERE id = %s", (novo_saldo, id_ganhador))

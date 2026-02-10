@@ -78,8 +78,8 @@ def criar_sala():
     if valor_inicial_validado is None:
         return jsonify({'error': erro}), 400
     
-    valor_necessario = round(valor_inicial_validado / 2, 2)
-    if saldo_usuario < valor_necessario:
+    valor_necessario = round(float(valor_inicial_validado) / 2, 2)
+    if float(saldo_usuario) < valor_necessario:
         return jsonify({'error': f'Saldo insuficiente para criar esta sala. Você precisa de pelo menos R$ {valor_necessario:.2f} (metade do valor da sala).'}), 400
     
     # Verificar limite de salas por usuário
@@ -136,7 +136,7 @@ def entrar_em_sala(id_sala):
     
     # Verificar se tem saldo suficiente (metade do valor da sala)
     valor_necessario = round(float(valor_inicial) / 2, 2)
-    if saldo_usuario < valor_necessario:
+    if float(saldo_usuario) < valor_necessario:
         return jsonify({'error': f'Saldo insuficiente. Você precisa de pelo menos R$ {valor_necessario:.2f} (metade do valor da sala) para entrar.'}), 400
     
     # Verificar se já está na sala
@@ -264,6 +264,7 @@ def definir_ganhador_sala(id_sala):
         porcentagem_vencedor = (100 - porcentagem_casa) / 100.0
 
         # Calcular distribuição baseada na configuração (usando float para precisão de centavos)
+        # O valor total da sala é o valor_inicial (que é a soma do que os dois jogadores pagaram)
         premio = round(float(valor_inicial) * porcentagem_vencedor, 2)
         valor_cofre = round(float(valor_inicial) - premio, 2)
         

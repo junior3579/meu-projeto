@@ -127,10 +127,10 @@ def inscrever_no_torneio(id):
     if not usuario:
         return jsonify({'error': 'Usuário não encontrado'}), 404
     
-    saldo_usuario = usuario[0][0]
+    saldo_usuario = float(usuario[0][0])
     
     # Validar se tem saldo suficiente
-    if valor_inscricao > 0 and saldo_usuario < valor_inscricao:
+    if float(valor_inscricao) > 0 and saldo_usuario < float(valor_inscricao):
         return jsonify({'error': f'Saldo insuficiente. A inscrição custa {valor_inscricao} reais e o usuário tem apenas {saldo_usuario} reais.'}), 400
     
     # Verificar se já está inscrito
@@ -626,7 +626,7 @@ def salvar_configuracao():
 def zerar_cofre():
     # Obter valor atual para o histórico
     cofre = executar_query_fetchall("SELECT valor_total FROM cofre_total WHERE id = 1")
-    valor_anterior = cofre[0][0] if cofre else 0
+    valor_anterior = float(cofre[0][0]) if cofre else 0.0
     
     if valor_anterior <= 0:
         return jsonify({'error': 'O cofre já está zerado'}), 400
@@ -661,10 +661,10 @@ def transferir_lucro():
         
     # Verificar saldo do cofre
     cofre = executar_query_fetchall("SELECT valor_total FROM cofre_total WHERE id = 1")
-    saldo_cofre = cofre[0][0] if cofre else 0
+    saldo_cofre = float(cofre[0][0]) if cofre else 0.0
     
     if saldo_cofre < valor_transferir:
-        return jsonify({'error': f'Saldo insuficiente no cofre. Disponível: R$ {saldo_cofre}'}), 400
+        return jsonify({'error': f'Saldo insuficiente no cofre. Disponível: R$ {saldo_cofre:.2f}'}), 400
         
     # Verificar se usuário existe
     usuario = executar_query_fetchall("SELECT nome FROM usuarios WHERE id = %s", (usuario_id,))

@@ -181,7 +181,7 @@ const UserDashboard = ({ user }) => {
 	                    <Users className="h-3 w-3" /> {Object.keys(sala.jogadores).length}/2
 	                  </span>
                   <div className="flex gap-2">
-                    {sala.criador === user.nome && Object.keys(sala.jogadores).length < 2 && (
+                    {sala.criador === user.nome && Object.keys(sala.jogadores).length === 1 && (
                       <Button 
                         size="sm" 
                         variant="destructive" 

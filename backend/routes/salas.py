@@ -173,10 +173,17 @@ def excluir_sala(id_sala):
     status = sala[0][2]
     vencedor_id = sala[0][3]
     
+    # Contar o número de jogadores
+    jogadores_ids = [j.strip() for j in jogadores_str.split(",") if j.strip()] if jogadores_str else []
+    numero_jogadores = len(jogadores_ids)
+    
+    # Validar: só permitir exclusão se houver apenas 1 jogador (o criador)
+    if numero_jogadores > 1:
+        return jsonify({'error': 'Não é possível excluir uma sala que já tem 2 jogadores. Finalize a partida ou remova o segundo jogador.'}), 400
+    
     # Se a sala não foi finalizada (não tem vencedor definido), reembolsar os jogadores
     if status != 'finalizada' and vencedor_id is None:
         if jogadores_str:
-            jogadores_ids = [j.strip() for j in jogadores_str.split(",") if j.strip()]
             # Cada jogador pagou metade do valor inicial
             valor_reembolso = (valor_inicial / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             

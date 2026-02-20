@@ -180,9 +180,35 @@ const UserDashboard = ({ user }) => {
 	                  <span className="text-sm text-gray-600 flex items-center gap-1">
 	                    <Users className="h-3 w-3" /> {Object.keys(sala.jogadores).length}/2
 	                  </span>
-	                  <Button size="sm" onClick={() => entrarNaSala(sala.id_sala)} disabled={Object.keys(sala.jogadores).length >= 2 || sala.criador === user.nome}>
-	                    {sala.criador === user.nome ? 'Sua Sala' : `Entrar (${sala.valor_inicial / 2} reais)`}
-	                  </Button>
+                  <div className="flex gap-2">
+                    {sala.criador === user.nome && Object.keys(sala.jogadores).length < 2 && (
+                      <Button 
+                        size="sm" 
+                        variant="destructive" 
+                        onClick={async () => {
+                          if (confirm('Deseja realmente excluir sua sala? O valor pago será reembolsado.')) {
+                            try {
+                              const res = await fetch(`/api/salas/${sala.id_sala}`, { method: 'DELETE' });
+                              const data = await res.json();
+                              if (res.ok) {
+                                toast.success(data.message);
+                                carregarDados();
+                                // Atualizar saldo após reembolso
+                                const saldoRes = await fetch(`/api/usuarios/${user.id}/saldo`);
+                                const saldoData = await saldoRes.json();
+                                if (saldoData.saldo !== undefined) setSaldoAtual(saldoData.saldo);
+                              } else toast.error(data.error);
+                            } catch (err) { toast.error('Erro de conexão'); }
+                          }
+                        }}
+                      >
+                        Excluir
+                      </Button>
+                    )}
+                    <Button size="sm" onClick={() => entrarNaSala(sala.id_sala)} disabled={Object.keys(sala.jogadores).length >= 2 || sala.criador === user.nome}>
+                      {sala.criador === user.nome ? 'Sua Sala' : `Entrar (${sala.valor_inicial / 2} reais)`}
+                    </Button>
+                  </div>
 	                </div>
               </Card>
             ))}

@@ -58,25 +58,31 @@ def criar_sala():
     criador = data.get('criador')
     if not nome_sala or not valor_inicial or not criador:
         return jsonify({'error': 'Nome da sala, valor inicial e criador são obrigatórios'}), 400
-    usuario_info = executar_query_fetchall("SELECT reais, whatsapp FROM usuarios WHERE nome = %s", (criador,))
+    usuario_info = executar_query_fetchall("SELECT id, reais, whatsapp FROM usuarios WHERE nome = %s", (criador,))
     if not usuario_info:
         return jsonify({'error': 'Usuário não encontrado'}), 404
-    saldo_usuario = Decimal(str(usuario_info[0][0]))
-    whatsapp = usuario_info[0][1] if usuario_info[0][1] else 'Não cadastrado'
+    
+    id_usuario = usuario_info[0][0]
+    saldo_usuario = Decimal(str(usuario_info[0][1]))
+    whatsapp = usuario_info[0][2] if usuario_info[0][2] else 'Não cadastrado'
+    
     valor_inicial_validado, erro = validar_reais(valor_inicial)
     if valor_inicial_validado is None:
         return jsonify({'error': erro}), 400
+    
     valor_necessario = (valor_inicial_validado / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     if saldo_usuario < valor_necessario:
         return jsonify({'error': f'Saldo insuficiente. Precisa de {float(valor_necessario):.2f}'}), 400
+    
     categoria_id = data.get('categoria_id')
+    # Armazenar o ID do usuário na lista de jogadores em vez do nome para consistência
     sucesso = executar_query_commit(
         "INSERT INTO salas (nome_sala, valor_inicial, criador, jogadores, whatsapp, categoria_id) VALUES (%s, %s, %s, %s, %s, %s)",
-        (nome_sala, valor_inicial_validado, criador, criador, whatsapp, categoria_id)
+        (nome_sala, valor_inicial_validado, criador, str(id_usuario), whatsapp, categoria_id)
     )
     if sucesso:
         novos_reais = saldo_usuario - valor_necessario
-        executar_query_commit("UPDATE usuarios SET reais = %s WHERE nome = %s", (novos_reais, criador))
+        executar_query_commit("UPDATE usuarios SET reais = %s WHERE id = %s", (novos_reais, id_usuario))
         return jsonify({'message': 'Sala criada', 'novos_reais': float(novos_reais)})
     return jsonify({'error': 'Erro ao criar sala'}), 500
 
@@ -98,9 +104,13 @@ def entrar_em_sala(id_sala):
     valor_necessario = (valor_inicial / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     if saldo_usuario < valor_necessario:
         return jsonify({'error': f'Saldo insuficiente. Precisa de {float(valor_necessario):.2f}'}), 400
+    
     jogadores_lista = jogadores.split(",") if jogadores else []
+    if str(id_usuario) in jogadores_lista:
+        return jsonify({'error': 'Você já está nesta sala'}), 400
     if len(jogadores_lista) >= 2:
         return jsonify({'error': 'Sala cheia'}), 400
+        
     novos_jogadores = jogadores + f",{id_usuario}" if jogadores else str(id_usuario)
     if executar_query_commit("UPDATE salas SET jogadores = %s WHERE id_sala = %s", (novos_jogadores, id_sala)):
         novos_reais = saldo_usuario - valor_necessario
@@ -112,16 +122,73 @@ def entrar_em_sala(id_sala):
 def definir_ganhador_sala(id_sala):
     data = request.get_json()
     vencedor_id = data.get('vencedor_id')
-    sala = executar_query_fetchall("SELECT valor_inicial, jogadores FROM salas WHERE id_sala = %s", (id_sala,))
+    if not vencedor_id:
+        return jsonify({'error': 'ID do vencedor é obrigatório'}), 400
+        
+    sala = executar_query_fetchall("SELECT valor_inicial, jogadores, status FROM salas WHERE id_sala = %s", (id_sala,))
     if not sala:
         return jsonify({'error': 'Sala não encontrada'}), 404
+    
     valor_inicial = Decimal(str(sala[0][0]))
+    status_atual = sala[0][2]
+    
+    if status_atual == 'finalizada':
+        return jsonify({'error': 'Esta sala já foi finalizada'}), 400
+        
     if executar_query_commit("UPDATE salas SET vencedor_id = %s, status = 'finalizada' WHERE id_sala = %s", (vencedor_id, id_sala)):
         config_casa = executar_query_fetchall("SELECT valor FROM configuracoes WHERE chave = 'porcentagem_casa'")
         porcentagem_casa = Decimal(str(config_casa[0][0])) if config_casa else Decimal('10')
-        porcentagem_vencedor = (Decimal('100') - porcentagem_casa) / Decimal('100')
-        premio = (valor_inicial * porcentagem_vencedor).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        
+        # Contabilidade: 10% da casa sobre o valor total (valor_inicial)
+        valor_casa = (valor_inicial * (porcentagem_casa / Decimal('100'))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        premio = valor_inicial - valor_casa
+        
+        # Atualizar saldo do vencedor
         executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE id = %s", (premio, vencedor_id))
-        executar_query_commit("DELETE FROM salas WHERE id_sala = %s", (id_sala,))
-        return jsonify({'message': 'Ganhador definido', 'premio': float(premio)})
+        
+        # Atualizar cofre da casa
+        executar_query_commit("UPDATE cofre_total SET valor_total = valor_total + %s, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = 1", (valor_casa,))
+        
+        # Registrar no histórico do cofre
+        executar_query_commit(
+            "INSERT INTO cofre_historico (id_sala, valor, descricao) VALUES (%s, %s, %s)",
+            (id_sala, valor_casa, f"Lucro da sala #{id_sala} ({porcentagem_casa}%)")
+        )
+        
+        # Remover a sala após finalizar (opcional, mas o código original fazia isso)
+        # executar_query_commit("DELETE FROM salas WHERE id_sala = %s", (id_sala,))
+        
+        return jsonify({'message': 'Ganhador definido', 'premio': float(premio), 'valor_casa': float(valor_casa)})
     return jsonify({'error': 'Erro ao definir ganhador'}), 500
+
+@salas_bp.route('/salas/<int:id_sala>', methods=['DELETE'])
+def excluir_sala(id_sala):
+    # Buscar informações da sala antes de excluir para realizar o reembolso
+    sala = executar_query_fetchall("SELECT valor_inicial, jogadores, status, vencedor_id FROM salas WHERE id_sala = %s", (id_sala,))
+    if not sala:
+        return jsonify({'error': 'Sala não encontrada'}), 404
+    
+    valor_inicial = Decimal(str(sala[0][0]))
+    jogadores_str = sala[0][1]
+    status = sala[0][2]
+    vencedor_id = sala[0][3]
+    
+    # Se a sala não foi finalizada (não tem vencedor definido), reembolsar os jogadores
+    if status != 'finalizada' and vencedor_id is None:
+        if jogadores_str:
+            jogadores_ids = [j.strip() for j in jogadores_str.split(",") if j.strip()]
+            # Cada jogador pagou metade do valor inicial
+            valor_reembolso = (valor_inicial / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            
+            for j_id in jogadores_ids:
+                if j_id.isdigit():
+                    executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE id = %s", (valor_reembolso, int(j_id)))
+                else:
+                    # Caso o ID não seja numérico (nome), tenta pelo nome
+                    executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE nome = %s", (valor_reembolso, j_id))
+    
+    # Excluir a sala
+    if executar_query_commit("DELETE FROM salas WHERE id_sala = %s", (id_sala,)):
+        return jsonify({'message': 'Sala excluída com sucesso e valores reembolsados (se aplicável)'})
+    
+    return jsonify({'error': 'Erro ao excluir sala'}), 500

@@ -179,7 +179,7 @@ def excluir_sala(id_sala):
     
     # Validar: só permitir exclusão se houver apenas 1 jogador (o criador)
     if numero_jogadores > 1:
-        return jsonify({'error': 'Não é possível excluir uma sala que já tem 2 jogadores. Finalize a partida ou remova o segundo jogador.'}), 400
+        return jsonify({'error': 'Não é possível excluir uma sala com 2 jogadores. Finalize a partida definindo um ganhador antes de remover a sala.'}), 400
     
     # Se a sala não foi finalizada (não tem vencedor definido), reembolsar os jogadores
     if status != 'finalizada' and vencedor_id is None:

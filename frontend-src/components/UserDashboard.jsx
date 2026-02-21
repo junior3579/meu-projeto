@@ -27,11 +27,28 @@ const UserDashboard = ({ user }) => {
   useEffect(() => {
     carregarDados()
     const socket = io(window.location.origin)
+    
+    // Entrar na sala privada do usuário para receber atualizações de saldo
+    socket.emit('join', { room: `user_${user.id}` })
+    
+    socket.on('atualizar_saldo', (data) => {
+      if (data.id_usuario === user.id) {
+        setSaldoAtual(data.novo_saldo)
+        toast.info(`Seu saldo foi atualizado: ${data.novo_saldo} reais`)
+      }
+    })
+
+    socket.on('atualizar_salas', (data) => {
+      carregarDados()
+      if (data.mensagem) toast.info(data.mensagem)
+    })
+
     socket.on('notificacao_sala', (data) => {
       if (data.criador === user.nome) toast.success(data.mensagem)
     })
+
     return () => socket.close()
-  }, [])
+  }, [user.id])
 
   const carregarDados = async () => {
     try {

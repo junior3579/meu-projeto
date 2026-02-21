@@ -83,6 +83,13 @@ def criar_sala():
     if sucesso:
         novos_reais = saldo_usuario - valor_necessario
         executar_query_commit("UPDATE usuarios SET reais = %s WHERE id = %s", (novos_reais, id_usuario))
+        
+        # Notificar atualização de saldo e nova sala
+        socketio = get_socketio()
+        if socketio:
+            socketio.emit('atualizar_saldo', {'id_usuario': id_usuario, 'novo_saldo': float(novos_reais)}, room=f"user_{id_usuario}")
+            socketio.emit('atualizar_salas', {'mensagem': f'Nova sala criada: {nome_sala}'})
+            
         return jsonify({'message': 'Sala criada', 'novos_reais': float(novos_reais)})
     return jsonify({'error': 'Erro ao criar sala'}), 500
 
@@ -115,6 +122,13 @@ def entrar_em_sala(id_sala):
     if executar_query_commit("UPDATE salas SET jogadores = %s WHERE id_sala = %s", (novos_jogadores, id_sala)):
         novos_reais = saldo_usuario - valor_necessario
         executar_query_commit("UPDATE usuarios SET reais = %s WHERE id = %s", (novos_reais, id_usuario))
+        
+        # Notificar atualização de saldo e entrada na sala
+        socketio = get_socketio()
+        if socketio:
+            socketio.emit('atualizar_saldo', {'id_usuario': id_usuario, 'novo_saldo': float(novos_reais)}, room=f"user_{id_usuario}")
+            socketio.emit('atualizar_salas', {'mensagem': f'Usuário entrou na sala {id_sala}'})
+            
         return jsonify({'message': 'Entrou na sala', 'novos_reais': float(novos_reais)})
     return jsonify({'error': 'Erro ao entrar'}), 500
 
@@ -143,8 +157,13 @@ def definir_ganhador_sala(id_sala):
         valor_casa = (valor_inicial * (porcentagem_casa / Decimal('100'))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         premio = valor_inicial - valor_casa
         
+        # Buscar saldo atual do vencedor para notificação
+        vencedor_res = executar_query_fetchall("SELECT reais FROM usuarios WHERE id = %s", (vencedor_id,))
+        saldo_vencedor_atual = Decimal(str(vencedor_res[0][0])) if vencedor_res else Decimal('0')
+        novo_saldo_vencedor = saldo_vencedor_atual + premio
+        
         # Atualizar saldo do vencedor
-        executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE id = %s", (premio, vencedor_id))
+        executar_query_commit("UPDATE usuarios SET reais = %s WHERE id = %s", (novo_saldo_vencedor, vencedor_id))
         
         # Atualizar cofre da casa
         executar_query_commit("UPDATE cofre_total SET valor_total = valor_total + %s, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = 1", (valor_casa,))
@@ -155,8 +174,11 @@ def definir_ganhador_sala(id_sala):
             (id_sala, valor_casa, f"Lucro da sala #{id_sala} ({porcentagem_casa}%)")
         )
         
-        # Remover a sala após finalizar (opcional, mas o código original fazia isso)
-        # executar_query_commit("DELETE FROM salas WHERE id_sala = %s", (id_sala,))
+        # Notificar vencedor e atualizar salas
+        socketio = get_socketio()
+        if socketio:
+            socketio.emit('atualizar_saldo', {'id_usuario': vencedor_id, 'novo_saldo': float(novo_saldo_vencedor)}, room=f"user_{vencedor_id}")
+            socketio.emit('atualizar_salas', {'mensagem': f'Ganhador definido na sala {id_sala}'})
         
         return jsonify({'message': 'Ganhador definido', 'premio': float(premio), 'valor_casa': float(valor_casa)})
     return jsonify({'error': 'Erro ao definir ganhador'}), 500
@@ -177,11 +199,9 @@ def excluir_sala(id_sala):
     jogadores_ids = [j.strip() for j in jogadores_str.split(",") if j.strip()] if jogadores_str else []
     numero_jogadores = len(jogadores_ids)
     
-    # Validar: só permitir exclusão se houver apenas 1 jogador (o criador)
-    if numero_jogadores > 1:
-        return jsonify({'error': 'Não é possível excluir uma sala com 2 jogadores. Finalize a partida definindo um ganhador antes de remover a sala.'}), 400
-    
     # Se a sala não foi finalizada (não tem vencedor definido), reembolsar os jogadores
+    # AGORA PERMITE EXCLUSÃO COM 2 JOGADORES (ESTORNO PARA AMBOS)
+    # IMPORTANTE: O cofre não é afetado durante estorno, apenas quando o ganhador é definido
     if status != 'finalizada' and vencedor_id is None:
         if jogadores_str:
             # Cada jogador pagou metade do valor inicial
@@ -189,13 +209,32 @@ def excluir_sala(id_sala):
             
             for j_id in jogadores_ids:
                 if j_id.isdigit():
+                    # Atualizar saldo do jogador (APENAS SALDO, NÃO COFRE)
                     executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE id = %s", (valor_reembolso, int(j_id)))
+                    
+                    # Notificar jogador sobre o reembolso
+                    socketio = get_socketio()
+                    if socketio:
+                        socketio.emit('atualizar_saldo', {'id_usuario': int(j_id), 'novo_saldo': None}, room=f"user_{int(j_id)}")
                 else:
                     # Caso o ID não seja numérico (nome), tenta pelo nome
                     executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE nome = %s", (valor_reembolso, j_id))
     
     # Excluir a sala
     if executar_query_commit("DELETE FROM salas WHERE id_sala = %s", (id_sala,)):
+        # Notificar todos os usuários sobre a atualização de salas
+        socketio = get_socketio()
+        if socketio:
+            socketio.emit('atualizar_salas', {'mensagem': f'Sala {id_sala} foi excluída pelo administrador. Estornos processados.'})
+        
+        # Registrar a exclusão no histórico do cofre para auditoria (sem afetar o valor)
+        if numero_jogadores > 0 and status != 'finalizada' and vencedor_id is None:
+            valor_reembolso = (valor_inicial / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            executar_query_commit(
+                "INSERT INTO cofre_historico (id_sala, valor, descricao) VALUES (%s, %s, %s)",
+                (id_sala, 0, f"Sala #{id_sala} excluída com estorno total para {numero_jogadores} jogadores (R$ {valor_reembolso} cada)")
+            )
+        
         return jsonify({'message': 'Sala excluída com sucesso e valores reembolsados (se aplicável)'})
     
     return jsonify({'error': 'Erro ao excluir sala'}), 500

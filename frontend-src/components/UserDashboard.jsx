@@ -27,28 +27,11 @@ const UserDashboard = ({ user }) => {
   useEffect(() => {
     carregarDados()
     const socket = io(window.location.origin)
-    
-    // Entrar na sala privada do usuário para receber atualizações de saldo
-    socket.emit('join', { room: `user_${user.id}` })
-    
-    socket.on('atualizar_saldo', (data) => {
-      if (data.id_usuario === user.id) {
-        setSaldoAtual(data.novo_saldo)
-        toast.info(`Seu saldo foi atualizado: ${data.novo_saldo} reais`)
-      }
-    })
-
-    socket.on('atualizar_salas', (data) => {
-      carregarDados()
-      if (data.mensagem) toast.info(data.mensagem)
-    })
-
     socket.on('notificacao_sala', (data) => {
       if (data.criador === user.nome) toast.success(data.mensagem)
     })
-
     return () => socket.close()
-  }, [user.id])
+  }, [])
 
   const carregarDados = async () => {
     try {
@@ -197,35 +180,9 @@ const UserDashboard = ({ user }) => {
 	                  <span className="text-sm text-gray-600 flex items-center gap-1">
 	                    <Users className="h-3 w-3" /> {Object.keys(sala.jogadores).length}/2
 	                  </span>
-                  <div className="flex gap-2">
-                    {sala.criador === user.nome && Object.keys(sala.jogadores).length === 1 && (
-                      <Button 
-                        size="sm" 
-                        variant="destructive" 
-                        onClick={async () => {
-                          if (confirm('Deseja realmente excluir sua sala? O valor pago será reembolsado.')) {
-                            try {
-                              const res = await fetch(`/api/salas/${sala.id_sala}`, { method: 'DELETE' });
-                              const data = await res.json();
-                              if (res.ok) {
-                                toast.success(data.message);
-                                carregarDados();
-                                // Atualizar saldo após reembolso
-                                const saldoRes = await fetch(`/api/usuarios/${user.id}/saldo`);
-                                const saldoData = await saldoRes.json();
-                                if (saldoData.saldo !== undefined) setSaldoAtual(saldoData.saldo);
-                              } else toast.error(data.error);
-                            } catch (err) { toast.error('Erro de conexão'); }
-                          }
-                        }}
-                      >
-                        Excluir
-                      </Button>
-                    )}
-                    <Button size="sm" onClick={() => entrarNaSala(sala.id_sala)} disabled={Object.keys(sala.jogadores).length >= 2 || sala.criador === user.nome}>
-                      {sala.criador === user.nome ? 'Sua Sala' : `Entrar (${sala.valor_inicial / 2} reais)`}
-                    </Button>
-                  </div>
+	                  <Button size="sm" onClick={() => entrarNaSala(sala.id_sala)} disabled={Object.keys(sala.jogadores).length >= 2 || sala.criador === user.nome}>
+	                    {sala.criador === user.nome ? 'Sua Sala' : `Entrar (${sala.valor_inicial / 2} reais)`}
+	                  </Button>
 	                </div>
               </Card>
             ))}

@@ -2,7 +2,6 @@ import pg8000
 import os
 from datetime import datetime, timezone, timedelta
 import time
-from decimal import Decimal
 
 # Configurações do Banco de Dados (Via Variáveis de Ambiente)
 DB_CONFIG = {
@@ -143,7 +142,7 @@ def criar_tabelas_remoto():
             id SERIAL PRIMARY KEY,
             nome TEXT NOT NULL UNIQUE,
             senha TEXT NOT NULL,
-            reais DECIMAL(15,2) NOT NULL DEFAULT 0,
+            reais INTEGER NOT NULL DEFAULT 0,
             whatsapp TEXT,
             pix_tipo TEXT,
             pix_chave TEXT,
@@ -151,8 +150,6 @@ def criar_tabelas_remoto():
             posicao INTEGER
         )
         ''',
-        'CREATE INDEX IF NOT EXISTS idx_usuarios_nome ON usuarios(nome)',
-        'CREATE INDEX IF NOT EXISTS idx_usuarios_posicao ON usuarios(posicao)',
         '''
         CREATE TABLE IF NOT EXISTS categorias (
             id SERIAL PRIMARY KEY,
@@ -163,7 +160,7 @@ def criar_tabelas_remoto():
         CREATE TABLE IF NOT EXISTS salas (
             id_sala SERIAL PRIMARY KEY,
             nome_sala TEXT NOT NULL,
-            valor_inicial DECIMAL(15,2) NOT NULL,
+            valor_inicial INTEGER NOT NULL,
             criador TEXT NOT NULL,
             jogadores TEXT,
             whatsapp TEXT,
@@ -172,39 +169,34 @@ def criar_tabelas_remoto():
             vencedor_id INTEGER
         )
         ''',
-        'CREATE INDEX IF NOT EXISTS idx_salas_status ON salas(status)',
-        'CREATE INDEX IF NOT EXISTS idx_salas_criador ON salas(criador)',
         '''
         CREATE TABLE IF NOT EXISTS apostas (
             id SERIAL PRIMARY KEY,
             id_sala INTEGER NOT NULL REFERENCES salas(id_sala),
             id_usuario INTEGER NOT NULL REFERENCES usuarios(id),
-            valor_aposta DECIMAL(15,2) NOT NULL,
+            valor_aposta INTEGER NOT NULL,
             status TEXT DEFAULT 'pendente',
             resultado TEXT DEFAULT 'pendente'
         )
         ''',
-        'CREATE INDEX IF NOT EXISTS idx_apostas_sala ON apostas(id_sala)',
-        'CREATE INDEX IF NOT EXISTS idx_apostas_usuario ON apostas(id_usuario)',
         '''
         CREATE TABLE IF NOT EXISTS transacoes (
             id SERIAL PRIMARY KEY,
             id_usuario INTEGER NOT NULL REFERENCES usuarios(id),
             tipo TEXT NOT NULL,
-            valor DECIMAL(15,2) NOT NULL,
+            valor INTEGER NOT NULL,
             status TEXT DEFAULT 'pendente',
             data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         ''',
-        'CREATE INDEX IF NOT EXISTS idx_transacoes_usuario ON transacoes(id_usuario)',
         '''
         CREATE TABLE IF NOT EXISTS torneios (
             id SERIAL PRIMARY KEY,
             nome TEXT NOT NULL,
             status TEXT DEFAULT 'inscricao',
             vencedor_id INTEGER REFERENCES usuarios(id),
-            valor_inscricao DECIMAL(15,2) DEFAULT 0,
-            premio DECIMAL(15,2) DEFAULT 0,
+            valor_inscricao INTEGER DEFAULT 0,
+            premio INTEGER DEFAULT 0,
             data_inicio TEXT,
             data_fim TEXT,
             fase_atual TEXT
@@ -220,7 +212,6 @@ def criar_tabelas_remoto():
             adversario_id INTEGER
         )
         ''',
-        'CREATE INDEX IF NOT EXISTS idx_torneio_participantes_torneio ON torneio_participantes(torneio_id)',
         '''
         CREATE TABLE IF NOT EXISTS torneio_confrontos (
             id SERIAL PRIMARY KEY,
@@ -231,8 +222,7 @@ def criar_tabelas_remoto():
             vencedor_id INTEGER REFERENCES usuarios(id),
             status TEXT DEFAULT 'pendente'
         )
-        ''',
-        'CREATE INDEX IF NOT EXISTS idx_torneio_confrontos_torneio ON torneio_confrontos(torneio_id)'
+        '''
     ]
     for q in queries:
         executar_query_commit(q)
@@ -257,3 +247,5 @@ def obter_menor_id_vago():
     id_vago = 1
     while id_vago in ids_ocupados: id_vago += 1
     return id_vago
+
+# Funções de atividade de usuário removidas

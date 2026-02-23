@@ -25,7 +25,7 @@ def login():
                     'id': 0,
                     'nome': 'admin',
                     'tipo': 'admin',
-                    'reais': 0.0
+                    'reais': 0
                 }
             })
     
@@ -43,8 +43,9 @@ def login():
                 'id': id_usuario,
                 'nome': nome,
                 'tipo': 'usuario',
-                'reais': float(reais) if reais is not None else 0.0
+                'reais': reais
             }
         })
     
     return jsonify({'error': 'Credenciais inválidas'}), 401
+

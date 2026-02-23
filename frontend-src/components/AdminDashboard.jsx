@@ -175,18 +175,8 @@ const AdminDashboard = ({ user }) => {
 
   const removerSala = async (idSala) => {
     if (confirm('Tem certeza que deseja remover esta sala?')) {
-      try {
-        const res = await fetch(`/api/salas/${idSala}`, { method: 'DELETE' })
-        const data = await res.json()
-        if (res.ok) {
-          setSuccess(data.message || 'Sala removida com sucesso!')
-          carregarDados()
-        } else {
-          setError(data.error || 'Erro ao remover sala')
-        }
-      } catch (err) {
-        setError('Erro de conexão ao remover sala')
-      }
+      await fetch(`/api/salas/${idSala}`, { method: 'DELETE' })
+      carregarDados()
     }
   }
 
@@ -540,13 +530,7 @@ const AdminDashboard = ({ user }) => {
                         Definir Ganhador
                       </Button>
                     )}
-                    <Button 
-                      size="sm" 
-                      variant="destructive" 
-                      onClick={() => removerSala(sala.id_sala)}
-                      disabled={obterJogadoresSala(sala).length > 1}
-                      title={obterJogadoresSala(sala).length > 1 ? 'Não é possível excluir salas com 2 jogadores. Defina um ganhador primeiro.' : 'Excluir sala'}
-                    >
+                    <Button size="sm" variant="destructive" onClick={() => removerSala(sala.id_sala)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

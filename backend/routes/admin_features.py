@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, jsonify
 from backend.database_config import executar_query_fetchall, executar_query_commit
 
@@ -242,262 +242,110 @@ def definir_vencedor_confronto(id_confronto):
     if vencedor_id != p1 and vencedor_id != p2:
         return jsonify({'error': 'O vencedor deve ser um dos jogadores do confronto'}), 400
 
-    perdedor_id = p1 if vencedor_id == p2 else p2
-    
-    # 1. Atualizar confronto
-    executar_query_commit("UPDATE torneio_confrontos SET vencedor_id = %s, status = 'finalizado' WHERE id = %s", (vencedor_id, id_confronto))
-    
-    # 2. Eliminar perdedor
-    if perdedor_id:
-        executar_query_commit("UPDATE torneio_participantes SET status = 'eliminado' WHERE torneio_id = %s AND usuario_id = %s", (torneio_id, perdedor_id))
-    
-    # 3. Verificar se todos os confrontos da fase acabaram para gerar próxima fase
-    pendentes = executar_query_fetchall("SELECT id FROM torneio_confrontos WHERE torneio_id = %s AND fase_nome = %s AND status = 'pendente'", (torneio_id, fase_atual))
-    
-    if not pendentes:
-        # Gerar próxima fase automaticamente
-        vencedores = executar_query_fetchall(
-            "SELECT usuario_id FROM torneio_participantes WHERE torneio_id = %s AND status = 'ativo'", (torneio_id,)
-        )
-        
-        if len(vencedores) == 1:
-            # Temos um campeão!
-            campeao_id = vencedores[0][0]
-            executar_query_commit("UPDATE torneios SET status = 'finalizado', vencedor_id = %s, fase_atual = 'Finalizado' WHERE id = %s", (campeao_id, torneio_id))
-            # Premiar
-            torneio_info = executar_query_fetchall("SELECT premio FROM torneios WHERE id = %s", (torneio_id,))
-            if torneio_info and torneio_info[0][0] > 0:
-                executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE id = %s", (torneio_info[0][0], campeao_id))
-        elif len(vencedores) > 1:
-            # Criar nova fase
-            try:
-                if "Fase" in fase_atual:
-                    fase_num = int(fase_atual.split()[-1])
-                    proxima_fase = f"Fase {fase_num + 1}"
-                else:
-                    proxima_fase = "Próxima Fase"
-            except:
-                proxima_fase = "Próxima Fase"
-                
-            lista_vencedores = [v[0] for v in vencedores]
-            import random
-            random.shuffle(lista_vencedores)
-            
-            for i in range(0, len(lista_vencedores), 2):
-                v1 = lista_vencedores[i]
-                v2 = lista_vencedores[i+1] if i+1 < len(lista_vencedores) else None
-                if v2:
-                    executar_query_commit("INSERT INTO torneio_confrontos (torneio_id, fase_nome, jogador1_id, jogador2_id) VALUES (%s, %s, %s, %s)", (torneio_id, proxima_fase, v1, v2))
-                else:
-                    # Jogador sem dupla passa automaticamente (BYE)
-                    executar_query_commit("INSERT INTO torneio_confrontos (torneio_id, fase_nome, jogador1_id, vencedor_id, status) VALUES (%s, %s, %s, %s, %s)", (torneio_id, proxima_fase, v1, v1, 'finalizado'))
-            
-            # Atualizar fase atual do torneio
-            executar_query_commit("UPDATE torneios SET fase_atual = %s WHERE id = %s", (proxima_fase, torneio_id))
-            
-            executar_query_commit("UPDATE torneios SET fase_atual = %s WHERE id = %s", (proxima_fase, torneio_id))
-
-    return jsonify({'message': 'Vencedor definido e chaves atualizadas!'})
-
-@admin_features_bp.route('/torneios/<int:id>/eliminar', methods=['POST'])
-def eliminar_participante(id):
-    data = request.get_json()
-    usuario_id = data.get('usuario_id')
-    
+    # Atualizar o vencedor do confronto
     sucesso = executar_query_commit(
-        "UPDATE torneio_participantes SET status = 'eliminado' WHERE torneio_id = %s AND usuario_id = %s",
-        (id, usuario_id)
+        "UPDATE torneio_confrontos SET vencedor_id = %s, status = 'finalizado' WHERE id = %s",
+        (vencedor_id, id_confronto)
     )
     
-    # Verificar se sobrou apenas um
-    ativos = executar_query_fetchall("SELECT usuario_id FROM torneio_participantes WHERE torneio_id = %s AND status = 'ativo'", (id,))
-    if ativos and len(ativos) == 1:
-        vencedor_id = ativos[0][0]
-        executar_query_commit("UPDATE torneios SET status = 'finalizado', vencedor_id = %s WHERE id = %s", (vencedor_id, id))
-        return jsonify({'message': 'Participante eliminado. Torneio finalizado!', 'vencedor_id': vencedor_id})
-    
     if sucesso:
-        return jsonify({'message': 'Participante eliminado'})
-    return jsonify({'error': 'Erro ao eliminar participante'}), 500
-
-@admin_features_bp.route('/torneios/<int:id>', methods=['PUT'])
-def editar_torneio(id):
-    data = request.get_json()
-    valor_inscricao = data.get('valor_inscricao')
-    premio = Decimal(str(data.get('premio'))) if data.get('premio') is not None else None
-    nome = data.get('nome')
-    data_inicio = data.get('data_inicio')
-    data_fim = data.get('data_fim')
+        # Eliminar o perdedor
+        perdedor_id = p1 if vencedor_id == p2 else p2
+        if perdedor_id:
+            executar_query_commit(
+                "UPDATE torneio_participantes SET status = 'eliminado' WHERE torneio_id = %s AND usuario_id = %s",
+                (torneio_id, perdedor_id)
+            )
+        return jsonify({'message': 'Vencedor definido com sucesso!'})
     
-    updates = []
-    params = []
-    
-    if nome is not None:
-        updates.append("nome = %s")
-        params.append(nome)
-    
-    if valor_inscricao is not None:
-        updates.append("valor_inscricao = %s")
-        params.append(valor_inscricao)
-    
-    if premio is not None:
-        updates.append("premio = %s")
-        params.append(premio)
-
-    if data_inicio is not None:
-        updates.append("data_inicio = %s")
-        params.append(data_inicio)
-
-    if data_fim is not None:
-        updates.append("data_fim = %s")
-        params.append(data_fim)
-    
-    if not updates:
-        return jsonify({'error': 'Nenhum campo para atualizar'}), 400
-    
-    params.append(id)
-    query = f"UPDATE torneios SET {', '.join(updates)} WHERE id = %s"
-    
-    sucesso = executar_query_commit(query, tuple(params))
-    if sucesso:
-        return jsonify({'message': 'Torneio atualizado com sucesso'})
-    return jsonify({'error': 'Erro ao atualizar torneio'}), 500
+    return jsonify({'error': 'Erro ao definir vencedor'}), 500
 
 @admin_features_bp.route('/torneios/<int:id>/avancar-fase', methods=['POST'])
 def avancar_fase_torneio(id):
-    """Avança participantes vencedores para a próxima fase"""
     data = request.get_json()
-    vencedores_ids = data.get('vencedores_ids', [])  # Lista de IDs dos vencedores
-    nome_fase_atual = data.get('nome_fase_atual', '')
-    nome_proxima_fase = data.get('nome_proxima_fase', '')
+    proxima_fase_nome = data.get('proxima_fase')
     
-    if not vencedores_ids:
-        return jsonify({'error': 'Lista de vencedores é obrigatória'}), 400
-    
-    # Marcar perdedores como eliminados
+    if not proxima_fase_nome:
+        return jsonify({'error': 'Nome da próxima fase é obrigatório'}), 400
+        
+    # Buscar participantes ativos (vencedores da fase anterior)
     participantes = executar_query_fetchall(
         "SELECT usuario_id FROM torneio_participantes WHERE torneio_id = %s AND status = 'ativo'",
         (id,)
     )
     
-    for p in participantes:
-        if p[0] not in vencedores_ids:
+    if not participantes or len(participantes) < 2:
+        # Se restar apenas 1, o torneio deve ser finalizado
+        if len(participantes) == 1:
+            vencedor_final_id = participantes[0][0]
+            # Buscar prêmio do torneio
+            torneio_info = executar_query_fetchall("SELECT premio FROM torneios WHERE id = %s", (id,))
+            premio = torneio_info[0][0] if torneio_info else 0
+            
+            # Finalizar torneio e pagar prêmio
+            executar_query_commit("UPDATE torneios SET status = 'finalizado', vencedor_id = %s WHERE id = %s", (vencedor_final_id, id))
+            if premio > 0:
+                executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE id = %s", (premio, vencedor_final_id))
+            
+            return jsonify({'message': 'Torneio finalizado! Vencedor definido e prêmio pago.', 'finalizado': True})
+            
+        return jsonify({'error': 'Não há participantes suficientes para avançar'}), 400
+        
+    # Gerar novos confrontos
+    import random
+    lista_ids = [p[0] for p in participantes]
+    random.shuffle(lista_ids)
+    
+    for i in range(0, len(lista_ids), 2):
+        p1 = lista_ids[i]
+        p2 = lista_ids[i+1] if i+1 < len(lista_ids) else None
+        
+        if p2:
             executar_query_commit(
-                "UPDATE torneio_participantes SET status = 'eliminado' WHERE torneio_id = %s AND usuario_id = %s",
-                (id, p[0])
+                "INSERT INTO torneio_confrontos (torneio_id, fase_nome, jogador1_id, jogador2_id) VALUES (%s, %s, %s, %s)",
+                (id, proxima_fase_nome, p1, p2)
             )
-    
-    # Registrar fase no histórico
-    vencedores_str = ','.join(map(str, vencedores_ids))
-    executar_query_commit(
-        "INSERT INTO torneio_fases (torneio_id, nome_fase, ordem, status, vencedores_ids) VALUES (%s, %s, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM torneio_fases WHERE torneio_id = %s), 'concluida', %s)",
-        (id, nome_fase_atual or 'Fase', id, vencedores_str)
-    )
-    
-    # Atualizar fase atual do torneio
-    if nome_proxima_fase:
-        executar_query_commit(
-            "UPDATE torneios SET fase_atual = %s WHERE id = %s",
-            (nome_proxima_fase, id)
-        )
-    
-    return jsonify({
-        'message': 'Fase avançada com sucesso',
-        'vencedores': vencedores_ids,
-        'proxima_fase': nome_proxima_fase
-    })
+        else:
+            executar_query_commit(
+                "INSERT INTO torneio_confrontos (torneio_id, fase_nome, jogador1_id, vencedor_id, status) VALUES (%s, %s, %s, %s, %s)",
+                (id, proxima_fase_nome, p1, p1, 'finalizado')
+            )
+            
+    executar_query_commit("UPDATE torneios SET fase_atual = %s WHERE id = %s", (proxima_fase_nome, id))
+    return jsonify({'message': f'Torneio avançou para {proxima_fase_nome}!'})
 
-@admin_features_bp.route('/torneios/<int:id>/finalizar', methods=['POST'])
-def finalizar_torneio(id):
-    """Finaliza o torneio definindo o vencedor"""
+@admin_features_bp.route('/torneios/<int:id>', methods=['PUT'])
+def editar_torneio(id):
     data = request.get_json()
-    vencedor_id = data.get('vencedor_id')
+    nome = data.get('nome')
+    valor_inscricao = Decimal(str(data.get('valor_inscricao', 0)))
+    premio = Decimal(str(data.get('premio', 0)))
     
-    if not vencedor_id:
-        return jsonify({'error': 'ID do vencedor é obrigatório'}), 400
-    
-    # Verificar se o vencedor está no torneio
-    participante = executar_query_fetchall(
-        "SELECT id FROM torneio_participantes WHERE torneio_id = %s AND usuario_id = %s",
-        (id, vencedor_id)
-    )
-    
-    if not participante:
-        return jsonify({'error': 'Vencedor não está inscrito no torneio'}), 404
-    
-    # Marcar todos exceto o vencedor como eliminados
-    executar_query_commit(
-        "UPDATE torneio_participantes SET status = 'eliminado' WHERE torneio_id = %s AND usuario_id != %s",
-        (id, vencedor_id)
-    )
-    
-    # Finalizar torneio
+    if not nome:
+        return jsonify({'error': 'Nome é obrigatório'}), 400
+        
     sucesso = executar_query_commit(
-        "UPDATE torneios SET status = 'finalizado', vencedor_id = %s, fase_atual = 'finalizado' WHERE id = %s",
-        (vencedor_id, id)
+        "UPDATE torneios SET nome = %s, valor_inscricao = %s, premio = %s WHERE id = %s",
+        (nome, valor_inscricao, premio, id)
     )
     
     if sucesso:
-        # Buscar prêmio do torneio
-        torneio = executar_query_fetchall("SELECT premio FROM torneios WHERE id = %s", (id,))
-        premio = torneio[0][0] if torneio and torneio[0][0] else 0
-        
-        # Adicionar prêmio ao vencedor se houver
-        if premio > 0:
-            executar_query_commit(
-                "UPDATE usuarios SET reais = reais + %s WHERE id = %s",
-                (premio, vencedor_id)
-            )
-        
-        return jsonify({
-            'message': 'Torneio finalizado com sucesso',
-            'vencedor_id': vencedor_id,
-            'premio': premio
-        })
-    
-    return jsonify({'error': 'Erro ao finalizar torneio'}), 500
-
-@admin_features_bp.route('/torneios/<int:id>/fases', methods=['GET'])
-def listar_fases_torneio(id):
-    """Lista todas as fases do torneio"""
-    fases = executar_query_fetchall(
-        "SELECT id, nome_fase, ordem, status, vencedores_ids FROM torneio_fases WHERE torneio_id = %s ORDER BY ordem",
-        (id,)
-    )
-    
-    res = []
-    if fases:
-        for f in fases:
-            res.append({
-                'id': f[0],
-                'nome_fase': f[1],
-                'ordem': f[2],
-                'status': f[3],
-                'vencedores_ids': f[4].split(',') if f[4] else []
-            })
-    
-    return jsonify(res)
+        return jsonify({'message': 'Torneio atualizado com sucesso'})
+    return jsonify({'error': 'Erro ao atualizar torneio'}), 500
 
 @admin_features_bp.route('/torneios/<int:id>', methods=['DELETE'])
 def remover_torneio(id):
-    """Remove um torneio e seus dados relacionados"""
     try:
-        # 1. Remover confrontos do torneio (Dependência de chave estrangeira)
+        # 1. Remover confrontos
         executar_query_commit("DELETE FROM torneio_confrontos WHERE torneio_id = %s", (id,))
-        
-        # 2. Remover fases do torneio
-        executar_query_commit("DELETE FROM torneio_fases WHERE torneio_id = %s", (id,))
-        
-        # 3. Remover participantes do torneio
+        # 2. Remover participantes
         executar_query_commit("DELETE FROM torneio_participantes WHERE torneio_id = %s", (id,))
-        
-        # 4. Remover o torneio
+        # 3. Remover torneio
         sucesso = executar_query_commit("DELETE FROM torneios WHERE id = %s", (id,))
         
         if sucesso:
             return jsonify({'message': 'Torneio removido com sucesso'})
-        else:
-            return jsonify({'error': 'Não foi possível remover o torneio do banco de dados'}), 500
+        return jsonify({'error': 'Erro ao remover torneio'}), 500
     except Exception as e:
         print(f"Erro ao remover torneio {id}: {str(e)}")
         return jsonify({'error': f'Erro interno: {str(e)}'}), 500
@@ -654,7 +502,7 @@ def transferir_lucro():
         return jsonify({'error': 'ID do usuário e valor são obrigatórios'}), 400
         
     try:
-        valor_transferir = float(valor_transferir)
+        valor_transferir = Decimal(str(valor_transferir)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         if valor_transferir <= 0:
             return jsonify({'error': 'O valor deve ser maior que zero'}), 400
     except ValueError:
@@ -662,7 +510,7 @@ def transferir_lucro():
         
     # Verificar saldo do cofre
     cofre = executar_query_fetchall("SELECT valor_total FROM cofre_total WHERE id = 1")
-    saldo_cofre = cofre[0][0] if cofre else 0
+    saldo_cofre = Decimal(str(cofre[0][0])) if cofre else Decimal('0')
     
     if saldo_cofre < valor_transferir:
         return jsonify({'error': f'Saldo insuficiente no cofre. Disponível: R$ {saldo_cofre}'}), 400
@@ -678,14 +526,14 @@ def transferir_lucro():
     # 1. Aumentar saldo do usuário primeiro
     sucesso_usuario = executar_query_commit(
         "UPDATE usuarios SET reais = reais + %s WHERE id = %s",
-        (int(valor_transferir), usuario_id)
+        (valor_transferir, usuario_id)
     )
     
     if sucesso_usuario:
         # 2. Diminuir do cofre
         sucesso_cofre = executar_query_commit(
             "UPDATE cofre_total SET valor_total = valor_total - %s, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = 1",
-            (int(valor_transferir),)
+            (valor_transferir,)
         )
         
         if sucesso_cofre:
@@ -694,12 +542,12 @@ def transferir_lucro():
                 "INSERT INTO cofre_historico (id_sala, valor, descricao) VALUES (0, %s, %s)",
                 (-valor_transferir, f"Transferência de lucro para {nome_usuario}")
             )
-            return jsonify({'message': f'R$ {valor_transferir} transferidos para {nome_usuario} com sucesso'})
+            return jsonify({'message': f'R$ {float(valor_transferir):.2f} transferidos para {nome_usuario} com sucesso'})
         else:
             # Rollback do saldo do usuário se falhar a atualização do cofre
             executar_query_commit(
                 "UPDATE usuarios SET reais = reais - %s WHERE id = %s",
-                (int(valor_transferir), usuario_id)
+                (valor_transferir, usuario_id)
             )
             return jsonify({'error': 'Erro ao atualizar saldo do cofre'}), 500
             

@@ -212,13 +212,25 @@ def excluir_sala(id_sala):
                     # Atualizar saldo do jogador (APENAS SALDO, NÃO COFRE)
                     executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE id = %s", (valor_reembolso, int(j_id)))
                     
+                    # Buscar novo saldo para notificar via socket
+                    novo_saldo_res = executar_query_fetchall("SELECT reais FROM usuarios WHERE id = %s", (int(j_id),))
+                    novo_saldo = float(novo_saldo_res[0][0]) if novo_saldo_res else 0.0
+                    
                     # Notificar jogador sobre o reembolso
                     socketio = get_socketio()
                     if socketio:
-                        socketio.emit('atualizar_saldo', {'id_usuario': int(j_id), 'novo_saldo': None}, room=f"user_{int(j_id)}")
+                        socketio.emit('atualizar_saldo', {'id_usuario': int(j_id), 'novo_saldo': novo_saldo}, room=f"user_{int(j_id)}")
                 else:
                     # Caso o ID não seja numérico (nome), tenta pelo nome
                     executar_query_commit("UPDATE usuarios SET reais = reais + %s WHERE nome = %s", (valor_reembolso, j_id))
+                    
+                    # Notificar por nome também se possível
+                    user_res = executar_query_fetchall("SELECT id, reais FROM usuarios WHERE nome = %s", (j_id,))
+                    if user_res:
+                        uid, u_reais = user_res[0]
+                        socketio = get_socketio()
+                        if socketio:
+                            socketio.emit('atualizar_saldo', {'id_usuario': uid, 'novo_saldo': float(u_reais)}, room=f"user_{uid}")
     
     # Excluir a sala
     if executar_query_commit("DELETE FROM salas WHERE id_sala = %s", (id_sala,)):
